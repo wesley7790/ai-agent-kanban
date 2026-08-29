@@ -8,7 +8,8 @@ export async function GET() {
     const tasks = await getTasks();
     return NextResponse.json({ success: true, tasks });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('GET /api/tasks error:', error);
+    return NextResponse.json({ success: false, error: error.message || String(error), stack: error.stack }, { status: 500 });
   }
 }
 
