@@ -50,27 +50,27 @@ function saveTasks(tasks: Task[]): void {
 
 // ==================== DB Row -> Task Mapping ====================
 
-function rowToTask(row: any, comments: any[] = [], links: any[] = [], deliverable?: any): Task {
+function rowToTask(row: any, comments: any[] = [], links: any[] = []): Task {
   return {
     id: row.id,
     title: row.title,
     description: row.description,
     status: row.status as TaskStatus,
     priority: row.priority as Task['priority'],
-    taskType: row.task_type as Task['taskType'],
+    taskType: row.taskType as Task['taskType'],
     tags: row.tags || [],
     deliverable: row.deliverable || null,
-    lastError: row.last_error || null,
-    createdAt: row.created_at?.toISOString?.() || row.created_at,
-    updatedAt: row.updated_at?.toISOString?.() || row.updated_at,
-    startedAt: row.started_at?.toISOString?.() || row.started_at || null,
-    completedAt: row.completed_at?.toISOString?.() || row.completed_at || null,
+    lastError: row.lastError || null,
+    createdAt: row.createdAt?.toISOString?.() || row.createdAt,
+    updatedAt: row.updatedAt?.toISOString?.() || row.updatedAt,
+    startedAt: row.startedAt?.toISOString?.() || row.startedAt || null,
+    completedAt: row.completedAt?.toISOString?.() || row.completedAt || null,
     comments: comments.map(c => ({
       id: c.id,
       author: c.author as 'user' | 'agent',
-      authorName: c.author_name || undefined,
+      authorName: c.authorName || undefined,
       content: c.content,
-      createdAt: c.created_at?.toISOString?.() || c.created_at,
+      createdAt: c.createdAt?.toISOString?.() || c.createdAt,
     })),
     conversationLinks: links.map(l => ({
       id: l.id,
@@ -86,25 +86,25 @@ function rowToTask(row: any, comments: any[] = [], links: any[] = [], deliverabl
 export async function getTasks(): Promise<Task[]> {
   if (!USE_DB) return ensureDataFile();
 
-  const rows = await prisma.task.findMany({ orderBy: { created_at: 'desc' } });
+  const rows = await prisma.task.findMany({ orderBy: { createdAt: 'desc' } });
   const taskIds = rows.map(r => r.id);
 
   const [allComments, allLinks] = await Promise.all([
-    prisma.comment.findMany({ where: { task_id: { in: taskIds } } }),
-    prisma.conversationLink.findMany({ where: { task_id: { in: taskIds } } }),
+    prisma.comment.findMany({ where: { taskId: { in: taskIds } } }),
+    prisma.conversationLink.findMany({ where: { taskId: { in: taskIds } } }),
   ]);
 
   const commentsByTask = new Map<string, any[]>();
   const linksByTask = new Map<string, any[]>();
   allComments.forEach(c => {
-    const arr = commentsByTask.get(c.task_id) || [];
+    const arr = commentsByTask.get(c.taskId) || [];
     arr.push(c);
-    commentsByTask.set(c.task_id, arr);
+    commentsByTask.set(c.taskId, arr);
   });
   allLinks.forEach(l => {
-    const arr = linksByTask.get(l.task_id) || [];
+    const arr = linksByTask.get(l.taskId) || [];
     arr.push(l);
-    linksByTask.set(l.task_id, arr);
+    linksByTask.set(l.taskId, arr);
   });
 
   return rows.map(r => rowToTask(r, commentsByTask.get(r.id) || [], linksByTask.get(r.id) || []));
@@ -119,8 +119,8 @@ export async function getTaskById(id: string): Promise<Task | null> {
   if (!row) return null;
 
   const [comments, links] = await Promise.all([
-    prisma.comment.findMany({ where: { task_id: id } }),
-    prisma.conversationLink.findMany({ where: { task_id: id } }),
+    prisma.comment.findMany({ where: { taskId: id } }),
+    prisma.conversationLink.findMany({ where: { taskId: id } }),
   ]);
 
   return rowToTask(row, comments, links);
@@ -163,7 +163,7 @@ export async function createTask(input: {
       description: input.description,
       status: input.status || 'backlog',
       priority: input.priority || 'medium',
-      task_type: input.taskType || 'general',
+      taskType: input.taskType || 'general',
       tags: input.tags || [],
     },
   });
@@ -172,7 +172,7 @@ export async function createTask(input: {
     await prisma.conversationLink.createMany({
       data: input.conversationLinks.map(l => ({
         id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        task_id: row.id,
+        taskId: row.id,
         title: l.title,
         url: l.url,
         type: l.type || 'chat',
@@ -208,25 +208,25 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<Ta
   const existing = await prisma.task.findUnique({ where: { id } });
   if (!existing) return null;
 
-  const data: any = { updated_at: new Date() };
+  const data: any = { updatedAt: new Date() };
   if (updates.title !== undefined) data.title = updates.title;
   if (updates.description !== undefined) data.description = updates.description;
   if (updates.status !== undefined) {
     data.status = updates.status;
     if (updates.status === 'in_progress' && existing.status !== 'in_progress') {
-      data.started_at = new Date();
+      data.startedAt = new Date();
     }
-    if ((updates.status === 'in_review' || updates.status === 'done') && !existing.completed_at) {
-      data.completed_at = new Date();
+    if ((updates.status === 'in_review' || updates.status === 'done') && !existing.completedAt) {
+      data.completedAt = new Date();
     }
   }
   if (updates.priority !== undefined) data.priority = updates.priority;
-  if (updates.taskType !== undefined) data.task_type = updates.taskType;
+  if (updates.taskType !== undefined) data.taskType = updates.taskType;
   if (updates.tags !== undefined) data.tags = updates.tags;
   if (updates.deliverable !== undefined) data.deliverable = updates.deliverable;
-  if (updates.lastError !== undefined) data.last_error = updates.lastError;
+  if (updates.lastError !== undefined) data.lastError = updates.lastError;
 
-  const row = await prisma.task.update({ where: { id }, data });
+  await prisma.task.update({ where: { id }, data });
   return getTaskById(id);
 }
 
@@ -276,9 +276,9 @@ export async function addComment(taskId: string, comment: {
   const row = await prisma.comment.create({
     data: {
       id: `c_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      task_id: taskId,
+      taskId: taskId,
       author: comment.author,
-      author_name: comment.authorName || (comment.author === 'user' ? 'User' : 'AI Agent'),
+      authorName: comment.authorName || (comment.author === 'user' ? 'User' : 'AI Agent'),
       content: comment.content,
     },
   });
@@ -286,9 +286,9 @@ export async function addComment(taskId: string, comment: {
   return {
     id: row.id,
     author: row.author as 'user' | 'agent',
-    authorName: row.author_name || undefined,
+    authorName: row.authorName || undefined,
     content: row.content,
-    createdAt: row.created_at.toISOString(),
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -320,7 +320,7 @@ export async function addConversationLink(taskId: string, link: {
   const row = await prisma.conversationLink.create({
     data: {
       id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      task_id: taskId,
+      taskId: taskId,
       title: link.title,
       url: link.url,
       type: link.type || 'chat',
@@ -356,16 +356,16 @@ export async function claimNextTodoTask(): Promise<Task | null> {
 
   const todoTasks = await prisma.task.findMany({
     where: { status: 'todo' },
-    orderBy: [{ priority: 'asc' }, { created_at: 'asc' }],
+    orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
   });
 
   if (todoTasks.length === 0) return null;
 
   const taskToClaim = todoTasks[0];
-  const row = await prisma.task.update({
+  await prisma.task.update({
     where: { id: taskToClaim.id },
-    data: { status: 'in_progress', started_at: new Date(), updated_at: new Date() },
+    data: { status: 'in_progress', startedAt: new Date(), updatedAt: new Date() },
   });
 
-  return getTaskById(row.id);
+  return getTaskById(taskToClaim.id);
 }
