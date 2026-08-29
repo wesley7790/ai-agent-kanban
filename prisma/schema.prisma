@@ -11,44 +11,47 @@ model Task {
   id                String             @id @default(cuid())
   title             String
   description       String             @db.Text
-  status            String             @default("backlog") // backlog, todo, in_progress, in_review, done
-  priority          String             @default("medium")  // low, medium, high
-  taskType          String             @default("general") // general, research, writing, planning, coding, analysis
+  status            String             @default("backlog")
+  priority          String             @default("medium")
+  taskType          String             @default("general") @map("task_type")
   tags              String[]           @default([])
   deliverable       Json?
-  lastError         String?            @db.Text
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  startedAt         DateTime?
-  completedAt       DateTime?
+  lastError         String?            @db.Text @map("last_error")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  startedAt         DateTime?          @map("started_at")
+  completedAt       DateTime?          @map("completed_at")
 
   comments          Comment[]
   conversationLinks ConversationLink[]
 
+  @@map("tasks")
   @@index([status])
   @@index([createdAt])
 }
 
 model Comment {
   id         String   @id @default(cuid())
-  taskId     String
+  taskId     String   @map("task_id")
   task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author     String   // 'user' | 'agent'
-  authorName String?
+  author     String
+  authorName String?  @map("author_name")
   content    String   @db.Text
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
 
+  @@map("comments")
   @@index([taskId])
 }
 
 model ConversationLink {
   id        String   @id @default(cuid())
-  taskId    String
+  taskId    String   @map("task_id")
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   title     String
   url       String
   type      String   @default("chat")
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
+  @@map("conversation_links")
   @@index([taskId])
 }
