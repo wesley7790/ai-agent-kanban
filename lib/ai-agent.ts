@@ -53,12 +53,13 @@ export async function executeTaskWithAgent(task: Task): Promise<AgentExecutionRe
   // If API Key is configured, make real LLM call
   if (apiKey) {
     try {
-      if (process.env.OPENAI_API_KEY || process.env.OPENAI_BASE_URL) {
+      if (process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_BASE_URL) {
+        const authKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || '';
         const response = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY || ''}`,
+            'Authorization': `Bearer ${authKey}`,
           },
           body: JSON.stringify({
             model: modelName,
